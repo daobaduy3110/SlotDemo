@@ -1,8 +1,8 @@
-export class Symbol {
+export default class Symbol {
     _symbolID = 0;
-    constructor(scene, x, y, frame) {
+    constructor(scene, x, y, id) {
         this.scene = scene;
-        this.sprite = scene.add.sprite(x, y, 'symbols', frame);
+        this.sprite = scene.add.sprite(x, y, 'symbol' + id.toString());
     }
 
     setID(id) {
