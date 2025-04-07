@@ -1,23 +1,17 @@
 import Symbol from '../components/Symbol.js'
+import Board from '../components/Board.js'
+import { GAMECFG } from '../GameConfig.js'
 
 export class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
 
-        this.boardSize = 4;
-        this.tileSize = 100;
-        this.tileSpacing = 10;
-        this.tweenSpeed = 100;
-        this.score = 0;
-        this.canMove = false;
-        this.movingTiles = 0;
-        
-        this.colNum = 5;
-        this.rowNum = 3;
-        this.padding = 10; // 10 pixel padding
-        this.symbolWidth = 145;
-        this.symbolHeight = 145;
-        this.columnGroup = [];
+        this.colNum = GAMECFG.REELNUM;
+        this.rowNum = GAMECFG.ROWNUM;
+        this.padding = GAMECFG.PADDING; // 10 pixel padding
+        this.symbolWidth = GAMECFG.SYMBOLWIDTH;
+        this.symbolHeight = GAMECFG.SYMBOLHEIGHT;
+        this.reelGroup = [];
     }
 
     create() {
@@ -38,53 +32,22 @@ export class GameScene extends Phaser.Scene {
         this.graphics.fillStyle(0xbbada0, 1);
         this.graphics.fillRoundedRect(boardX, boardY, boardWidth, boardHeight, 16);
 
-        this.fieldArray = [];
-        this.fieldGroup = this.add.group();
-
-        // Create the board grid
-        for (let row = 0; row < this.boardSize; row++) {
-            this.fieldArray[row] = [];
-            for (let col = 0; col < this.boardSize; col++) {
-                // Position for this tile
-                const posX = this.tileDestinationX(col);
-                const posY = this.tileDestinationY(row);
-
-                // Add tile background
-                const tileBG = this.add.image(posX, posY, 'tile_background');
-                tileBG.setDisplaySize(this.tileSize, this.tileSize);
-
-                // Create a tile sprite (initially invisible)
-                const tile = this.add.sprite(posX, posY, 'tile2');
-                tile.setVisible(false);
-                // Make tiles slightly smaller than their background
-                tile.setDisplaySize(this.tileSize * 0.8, this.tileSize * 0.8);
-                tile.setScale(0.8); // Start with a smaller scale
-                this.fieldGroup.add(tile);
-
-                // Store the tile information
-                this.fieldArray[row][col] = {
-                    tileValue: 0,
-                    tileSprite: tile,
-                    canUpgrade: true
-                };
-            }
-        }
-
-        // Start the game with two tiles
-        this.canMove = true;
-        this.addTile();
-        this.addTile();
+        // board
+        const board = new Board(this, boardX, boardY);
+        const boardData = this.randomBoardData();
+        board.init(boardData);
     }
 
-    createBoardGrid() {
-        this.columnGroup = [];
+    randomBoardData() {
+        let data = [];
+        const randomArr = Array.from( { length: GAMECFG.SYMBOLNUM }, (_, i) => i);
         for (let col = 0; col < this.colNum; ++col) {
+            data[col] = [];
             for (let row = 0; row < this.rowNum; ++row) {
-                // symbol position
-                const posX = this.getPositionX(col);
-                const posY = this.getPositionY(row);
+                data[col][row] = Phaser.Utils.Array.GetRandom(randomArr);
             }
         }
+        return data;
     }
 
     // Add a new tile (2 or 4) to a random empty cell
@@ -236,19 +199,5 @@ export class GameScene extends Phaser.Scene {
         const boardWidth = this.boardSize * (this.tileSize + this.tileSpacing) + this.tileSpacing;
         const boardY = 384 - boardWidth / 2;
         return boardY + this.tileSpacing + (row * (this.tileSize + this.tileSpacing)) + (this.tileSize / 2);
-    }
-
-    getPositionX(col) {
-        const gameWidth = this.game.config.width;
-        const boardWidth = this.symbolWidth * this.colNum + this.padding * 2;
-        const boardX = gameWidth / 2 - boardWidth / 2;
-        return boardX + col * this.symbolWidth + this.symbolWidth / 2;
-    }
-
-    getPositionY(row) {
-        const gameHeight = this.game.config.height;
-        const boardHeight = this.symbolHeight * this.rowNum + this.padding * 2;
-        const boardY = gameHeight / 2 - boardHeight / 2;
-        return boardY + row * this.symbolHeight + this.symbolHeight / 2;
     }
 }

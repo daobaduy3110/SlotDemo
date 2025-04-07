@@ -1,23 +1,15 @@
-export default class Symbol {
+export default class Symbol extends Phaser.GameObjects.Sprite {
     _symbolID = 0;
-    constructor(scene, x, y, id) {
-        this.scene = scene;
-        this.sprite = scene.add.sprite(x, y, 'symbol' + id.toString());
+    constructor(scene, x, y, texture) {
+        super(scene, x, y, texture);
+        scene.add.existing(this);
     }
 
-    setID(id) {
+    setSymbolID(id) {
         this._symbolID = id;
         // change to new sprite
-        const frameName = this._symbolID + 10;
-        this.sprite.setFrame(frameName);
-    }
-
-    setPosition(x, y) {
-        this.sprite.setPosition(x, y);
-    }
-
-    destroy() {
-        this.sprite.destroy();
+        const textureName = 'symbol' + this._symbolID.toString();
+        this.setTexture(textureName);
     }
     
 }
