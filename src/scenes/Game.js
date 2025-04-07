@@ -11,7 +11,6 @@ export class GameScene extends Phaser.Scene {
         this.padding = GAMECFG.PADDING; // 10 pixel padding
         this.symbolWidth = GAMECFG.SYMBOLWIDTH;
         this.symbolHeight = GAMECFG.SYMBOLHEIGHT;
-        this.reelGroup = [];
     }
 
     create() {
@@ -36,6 +35,12 @@ export class GameScene extends Phaser.Scene {
         const board = new Board(this, boardX, boardY);
         const boardData = this.randomBoardData();
         board.init(boardData);
+
+        // spin button
+        const spinButton = this.add.sprite(gameWidth / 2, gameHeight - 80, 'spinButton').setInteractive();
+        spinButton.on('pointerup', function (pointer, localX, localY, event) {
+            console.log('spin button pressed');
+        }, this);
     }
 
     randomBoardData() {

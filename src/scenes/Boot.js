@@ -1,14 +1,4 @@
-const FILES = {
-    symbols: {
-        key: 'symbol',
-        url: 'sprites/symbols/symbol'
-    },
-    symbolNum: 9,
-    spinButton: {
-        key: 'spinButton',
-        url: 'sprites/SpinButton.png'
-    }
-};
+import { FILES, GAMECFG } from '../GameConfig.js'
 
 export class Boot extends Phaser.Scene {
     constructor() {
@@ -21,7 +11,7 @@ export class Boot extends Phaser.Scene {
 
         this.load.setPath('assets');
 
-        for (let i = 0; i < FILES.symbolNum; ++i) {
+        for (let i = 0; i < GAMECFG.SYMBOLNUM; ++i) {
             this.load.image(FILES.symbols.key + i.toString(), FILES.symbols.url + i.toString() + '.png');
         }
         this.load.image(FILES.spinButton);

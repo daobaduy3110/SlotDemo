@@ -1,27 +1,28 @@
 import { GAMECFG } from '../GameConfig.js'
 import Symbol from './Symbol.js'
+import Reel from '../components/Reel.js'
 
 export default class Board extends Phaser.GameObjects.Sprite {
     boardData = [];
     get boardData() { return symbols; }
     set boardData(data) { symbols = data; }
     reelGroup = [];
+    reels = [];
 
     constructor(scene, x, y, texture) {
         super(scene, x, y, texture);
         this.scene = scene;
 
         this.boardData = [];
-        this.reelGroup =[];
 
         scene.add.existing(this);
     }
 
     init(data) {
-        this.reelGroup = [];
+        this.reels = [];
         this.boardData = data;
         for (let col = 0; col < GAMECFG.REELNUM; ++col) {
-            this.reelGroup[col] = this.scene.add.group();
+            this.reels[col] = new Reel(this.scene, col);
             for (let row = 0; row < GAMECFG.ROWNUM; ++row) {
                 // symbol position
                 const posX = this.getPositionX(col);
@@ -31,7 +32,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
                 const textureName = 'symbol' + this.boardData[col][row].toString();
                 let symbol = new Symbol(this.scene, posX, posY, textureName);
                 this.scene.add.existing(symbol);
-                this.reelGroup[col].add(symbol);
+                this.reels[col].add(symbol);
             }
         }
     }

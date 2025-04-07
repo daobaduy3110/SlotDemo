@@ -1,3 +1,14 @@
+export const FILES = {
+    symbols: {
+        key: 'symbol',
+        url: 'sprites/symbols/symbol'
+    },
+    spinButton: {
+        key: 'spinButton',
+        url: 'sprites/SpinButton.png'
+    }
+};
+
 export const GAMECFG = {
     REELNUM: 5,
     ROWNUM: 3,
