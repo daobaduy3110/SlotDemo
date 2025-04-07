@@ -1,12 +1,19 @@
-import { GAMECFG } from '../GameConfig.js'
+import { GAMECFG, GAME_EVENT } from '../GameConfig.js'
 import Symbol from './Symbol.js'
 import Reel from '../components/Reel.js'
+
+const BOARD_STATE = {
+    IDLE: 'idle',
+    SPIN_START: 'spinStart',
+    SPIN_WAIT_RESULT: 'spinWaitResult',
+    SPIN_TO_RESULT: 'spinToResult',
+    SHOW_WIN: 'showWin'
+}
 
 export default class Board extends Phaser.GameObjects.Sprite {
     boardData = [];
     get boardData() { return symbols; }
     set boardData(data) { symbols = data; }
-    reelGroup = [];
     reels = [];
 
     constructor(scene, x, y, texture) {
@@ -14,6 +21,8 @@ export default class Board extends Phaser.GameObjects.Sprite {
         this.scene = scene;
 
         this.boardData = [];
+        this.state = BOARD_STATE.IDLE;
+        this.registerEventListeners();
 
         scene.add.existing(this);
     }
@@ -37,6 +46,20 @@ export default class Board extends Phaser.GameObjects.Sprite {
         }
     }
 
+    registerEventListeners() {
+        this.scene.events.on(GAME_EVENT.PRESS_SPIN, this.onSpinPressed, this);
+    }
+
+    onSpinPressed() {
+        if (this.isAbleToSpin()) {
+            // this.emit(GAME_EVENT.SPIN_START);   // unused for now
+            this.state = BOARD_STATE.SPIN_START;
+            this.scene.events.emit(GAME_EVENT.SPIN_START_SWING);
+        } else {
+            console.log('Not able to spin, board is not idle!');
+        }
+    }
+
     getPositionX(col) {
         const gameWidth = this.scene.game.config.width;
         const boardWidth = GAMECFG.SYMBOLWIDTH * GAMECFG.REELNUM + GAMECFG.PADDING * 2;
@@ -50,4 +73,6 @@ export default class Board extends Phaser.GameObjects.Sprite {
         const boardY = gameHeight / 2 - boardHeight / 2;
         return boardY + row * GAMECFG.SYMBOLHEIGHT + GAMECFG.SYMBOLHEIGHT / 2;
     }
+
+    isAbleToSpin() { return this.state == BOARD_STATE.IDLE; }
 }

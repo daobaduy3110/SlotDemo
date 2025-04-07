@@ -1,6 +1,6 @@
 import Symbol from '../components/Symbol.js'
 import Board from '../components/Board.js'
-import { GAMECFG } from '../GameConfig.js'
+import { GAMECFG, GAME_EVENT } from '../GameConfig.js'
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -11,6 +11,9 @@ export class GameScene extends Phaser.Scene {
         this.padding = GAMECFG.PADDING; // 10 pixel padding
         this.symbolWidth = GAMECFG.SYMBOLWIDTH;
         this.symbolHeight = GAMECFG.SYMBOLHEIGHT;
+        this.board;
+        this.spinButton;
+        this.registerEventListeners();
     }
 
     create() {
@@ -32,18 +35,22 @@ export class GameScene extends Phaser.Scene {
         this.graphics.fillRoundedRect(boardX, boardY, boardWidth, boardHeight, 16);
 
         // board
-        const board = new Board(this, boardX, boardY);
-        const boardData = this.randomBoardData();
-        board.init(boardData);
+        this.board = new Board(this, boardX, boardY);
+        const boardData = this.randomizeBoardData();
+        this.board.init(boardData);
 
         // spin button
-        const spinButton = this.add.sprite(gameWidth / 2, gameHeight - 80, 'spinButton').setInteractive();
-        spinButton.on('pointerup', function (pointer, localX, localY, event) {
-            console.log('spin button pressed');
+        this.spinButton = this.add.sprite(gameWidth / 2, gameHeight - 80, 'spinButton').setInteractive();
+        this.spinButton.on('pointerup', function (pointer, localX, localY, event) {
+            this.events.emit(GAME_EVENT.PRESS_SPIN);
         }, this);
     }
 
-    randomBoardData() {
+    registerEventListeners() {
+        
+    }
+
+    randomizeBoardData() {
         let data = [];
         const randomArr = Array.from( { length: GAMECFG.SYMBOLNUM }, (_, i) => i);
         for (let col = 0; col < this.colNum; ++col) {
@@ -102,107 +109,5 @@ export class GameScene extends Phaser.Scene {
         });
 
         return true;
-    }
-
-    moveTile(tile, row, col, distance, changeNumber) {
-        this.movingTiles++;
-
-        // Get the final position for the tile
-        const posX = this.tileDestinationX(col);
-        const posY = this.tileDestinationY(row);
-
-        this.tweens.add({
-            targets: [tile.tileSprite],
-            x: posX,
-            y: posY,
-            duration: this.tweenSpeed * distance,
-            ease: 'Linear',
-            onComplete: () => {
-                this.movingTiles--;
-
-                // If the tiles are merging, show the merge animation
-                if (changeNumber) {
-                    this.mergeTile(tile, row, col);
-                }
-
-                // If all moving tiles have completed their animations
-                if (this.movingTiles === 0) {
-                    this.resetTiles();
-                    this.addTile();
-                }
-            }
-        });
-    }
-
-    mergeTile(tile, row, col) {
-        this.movingTiles++;
-
-        tile.tileSprite.setVisible(false);
-
-        // Show the merged tile with updated value
-        const targetTile = this.fieldArray[row][col];
-        targetTile.tileSprite.setTexture(`tile${targetTile.tileValue}`);
-        targetTile.tileSprite.setVisible(true);
-
-        this.tweens.add({
-            targets: [targetTile.tileSprite],
-            scale: 1.0,
-            duration: this.tweenSpeed,
-            yoyo: true,
-            ease: 'Quad.easeInOut',
-            onComplete: () => {
-                targetTile.tileSprite.setScale(0.8); // Reset to normal scale
-                this.movingTiles--;
-
-                // If all animations have completed
-                if (this.movingTiles === 0) {
-                    this.resetTiles();
-                    this.addTile();
-                }
-            }
-        });
-    }
-
-    // Reset all tiles after a move
-    resetTiles() {
-        for (let row = 0; row < this.boardSize; row++) {
-            for (let col = 0; col < this.boardSize; col++) {
-                // Reset upgrade flags
-                this.fieldArray[row][col].canUpgrade = true;
-
-                // Make sure tiles are in the correct position
-                const posX = this.tileDestinationX(col);
-                const posY = this.tileDestinationY(row);
-                this.fieldArray[row][col].tileSprite.x = posX;
-                this.fieldArray[row][col].tileSprite.y = posY;
-
-                // Show/hide tiles based on their value
-                if (this.fieldArray[row][col].tileValue > 0) {
-                    this.fieldArray[row][col].tileSprite.setAlpha(1);
-                    this.fieldArray[row][col].tileSprite.setVisible(true);
-                    this.fieldArray[row][col].tileSprite.setTexture(`tile${this.fieldArray[row][col].tileValue}`);
-                    this.fieldArray[row][col].tileSprite.setScale(0.8);
-                } else {
-                    this.fieldArray[row][col].tileSprite.setAlpha(0);
-                    this.fieldArray[row][col].tileSprite.setVisible(false);
-                }
-            }
-        }
-    }
-
-    isInsideBoard(row, col) {
-        return (row >= 0) && (col >= 0) && (row < this.boardSize) && (col < this.boardSize);
-    }
-
-    tileDestinationX(col) {
-        const boardWidth = this.boardSize * (this.tileSize + this.tileSpacing) + this.tileSpacing;
-        const boardX = 512 - boardWidth / 2;
-        return boardX + this.tileSpacing + (col * (this.tileSize + this.tileSpacing)) + (this.tileSize / 2);
-    }
-
-    tileDestinationY(row) {
-        const boardWidth = this.boardSize * (this.tileSize + this.tileSpacing) + this.tileSpacing;
-        const boardY = 384 - boardWidth / 2;
-        return boardY + this.tileSpacing + (row * (this.tileSize + this.tileSpacing)) + (this.tileSize / 2);
     }
 }
