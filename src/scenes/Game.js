@@ -34,6 +34,11 @@ export class GameScene extends Phaser.Scene {
         this.graphics.fillStyle(0xbbada0, 1);
         this.graphics.fillRoundedRect(boardX, boardY, boardWidth, boardHeight, 16);
 
+        // Board layer
+        this.boardLayer = this.add.layer();
+        const boardMask = this.graphics.createGeometryMask();
+        this.boardLayer.setMask(boardMask);
+
         // board
         this.board = new Board(this, boardX, boardY);
         const boardData = this.randomizeBoardData();

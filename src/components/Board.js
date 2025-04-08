@@ -40,7 +40,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
                 // texture name
                 const textureName = 'symbol' + this.boardData[col][row].toString();
                 let symbol = new Symbol(this.scene, posX, posY, textureName);
-                this.scene.add.existing(symbol);
+                this.scene.boardLayer.add(symbol);  // add to boardLayer to apply masking
                 this.reels[col].add(symbol);
             }
         }
