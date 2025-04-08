@@ -60,6 +60,17 @@ export default class Reel extends Phaser.GameObjects.Group {
     async spinAccelerate(id) {
         if (this.id != id) return;
         this.state = REEL_STATE.SPIN_ACCELERATE;
-        console.log('Reel ' + this.id + ' spin accelerate');
+        // console.log('Reel ' + this.id + ' spin accelerate');
+    }
+
+    async checkUpdateOutOfSightSymbols() {
+        // console.log(this.scene.sys.game.loop.delta);
+        // let tween = this.tweens.add({
+        //     targets: image,
+        //     x: 500,
+        //     ease: 'Power1',
+        //     duration: 3000,
+        // });
+        // tween.on('update', listener);
     }
 }

@@ -50,10 +50,11 @@ export default class Board extends Phaser.GameObjects.Sprite {
         this.scene.events.on(GAME_EVENT.PRESS_SPIN, this.onSpinPressed, this);
     }
 
-    onSpinPressed() {
+    async onSpinPressed() {
         if (this.isAbleToSpin()) {
             // this.emit(GAME_EVENT.SPIN_START);   // unused for now
             this.state = BOARD_STATE.SPIN_START;
+            await this.checkUpdateOutOfSightSymbols();
             this.scene.events.emit(GAME_EVENT.SPIN_START_SWING);
         } else {
             console.log('Not able to spin, board is not idle!');
@@ -75,4 +76,13 @@ export default class Board extends Phaser.GameObjects.Sprite {
     }
 
     isAbleToSpin() { return this.state == BOARD_STATE.IDLE; }
+
+    async checkUpdateOutOfSightSymbols() {
+        let promises = [];
+        for (const reel of this.reels) {
+            promises.push(reel.checkUpdateOutOfSightSymbols());
+        }
+        await Promise.all(promises);
+    }
+
 }
