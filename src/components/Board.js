@@ -39,9 +39,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
 
                 // texture name
                 const textureName = 'symbol' + this.boardData[col][row].toString();
-                let symbol = new Symbol(this.scene, posX, posY, textureName);
-                this.scene.boardLayer.add(symbol);  // add to boardLayer to apply masking
-                this.reels[col].add(symbol);
+                this.addSymbolToBoard(posX, posY, textureName, this.reels[col]);
             }
         }
     }
@@ -54,7 +52,6 @@ export default class Board extends Phaser.GameObjects.Sprite {
         if (this.isAbleToSpin()) {
             // this.emit(GAME_EVENT.SPIN_START);   // unused for now
             this.state = BOARD_STATE.SPIN_START;
-            await this.checkUpdateOutOfSightSymbols();
             this.scene.events.emit(GAME_EVENT.SPIN_START_SWING);
         } else {
             console.log('Not able to spin, board is not idle!');
@@ -83,6 +80,14 @@ export default class Board extends Phaser.GameObjects.Sprite {
             promises.push(reel.checkUpdateOutOfSightSymbols());
         }
         await Promise.all(promises);
+    }
+    
+    addSymbolToBoard(posX, posY, textureName, reel) {
+        let symbol = new Symbol(this.scene, posX, posY, textureName);
+        this.scene.boardLayer.add(symbol);  // add to boardLayer to apply masking
+        if (reel) {
+            reel.add(symbol);
+        }
     }
 
 }

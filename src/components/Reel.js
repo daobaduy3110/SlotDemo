@@ -1,5 +1,5 @@
 import Symbol from './Symbol.js'
-import { GAME_EVENT, SPINCFG } from '../GameConfig.js'
+import { GAMECFG, GAME_EVENT, SPINCFG } from '../GameConfig.js'
 
 const REEL_STATE = {
     IDLE: 'idle',
@@ -22,28 +22,57 @@ const REEL_STATE = {
 // The actual parent of symbols are the board
 export default class Reel extends Phaser.GameObjects.Group {
     constructor(scene, id) {
-        super(scene);
+        super(scene, null, {
+            createCallback: (item) => {
+                // update the top symbol when new symbol is added
+                if (this.children.size <= 1) {
+                    this.topSymbol = item;
+                } else {
+                    if (item.y < this.topSymbol.y) {
+                        this.topSymbol = item;
+                    }
+                }
+            }
+        });
 
         this.scene = scene;
         this.id = id;
         this.classType = Symbol;
-        this.registerEventListeners();
-        this.tweenStartSwing;
+        this.tweenAction;   // current tween action applying on children of reel
         this.state = REEL_STATE.IDLE;
+        this.spinSpeed= 0;  // spin speed
+        this.topSymbol = null; // to keep track of the top position        
 
+        const boardHeight = GAMECFG.SYMBOLHEIGHT * GAMECFG.ROWNUM + GAMECFG.PADDING * 2;
+        this.topBoardY = this.scene.game.config.height / 2 - boardHeight / 2;
+        this.bottomBoardY = this.scene.game.config.height / 2 + boardHeight / 2;
+
+        this.registerEventListeners();
         scene.add.existing(this);
     }
 
     registerEventListeners() {
         this.scene.events.on(GAME_EVENT.SPIN_START_SWING, this.startSwing, this);
         this.scene.events.on(GAME_EVENT.SPIN_ACCELERATE, this.spinAccelerate, this);
+        this.scene.events.on(GAME_EVENT.SPIN_CONSTANT_SPEED, this.spinConstantSpeed, this);
+    }
+
+    onAddNewItem() {
+        // update the top symbol when new symbol is added
+        if (this.children.size == 0 || (this.children.size == 1 && this.children[0] == item)) {
+            this.topSymbol = item;
+        } else {
+            if (item.y < this.topSymbol.y) {
+                this.topSymbol = item;
+            }
+        }
     }
 
     async startSwing() {
         this.state = REEL_STATE.SPIN_START_SWING;
         // console.log('Reel ' + this.id + ' starts Swing');
         await new Promise((resolve) => {
-            this.tweenStartSwing = this.scene.tweens.add({
+            this.tweenAction = this.scene.tweens.add({
                 targets: this.getChildren(),
                 y: '-=' + SPINCFG.SWING_DISTANCE,
                 duration: SPINCFG.SWING_DURATION,
@@ -57,20 +86,72 @@ export default class Reel extends Phaser.GameObjects.Group {
         return;
     }
 
+    async checkUpdateOutOfSightSymbols() {
+        // move out of sight symbols at the bottom to the top
+        for (const symbol of this.getChildren()) {
+            if (symbol.y > this.bottomBoardY + GAMECFG.SYMBOLHEIGHT / 2) {
+                symbol.y = this.topSymbol.y + GAMECFG.SYMBOLHEIGHT;
+                this.topSymbol = symbol;
+            }
+        }
+
+        // estimate the reel move distance
+        const dt = this.scene.sys.game.loop.delta;
+        const moveDist = dt * this.spinSpeed;
+        const topSymbolFuturePosY = this.topSymbol.y + moveDist;
+        if (topSymbolFuturePosY >= this.topBoardY + GAMECFG.SYMBOLHEIGHT / 2) {
+            // need to add fake symbols at top
+            const toFillDist = topSymbolFuturePosY - this.topBoardY - GAMECFG.SYMBOLHEIGHT / 2;
+            const toFillSymbolNum = Math.ceil(toFillDist / GAMECFG.SYMBOLHEIGHT);
+            for (let i = 0; i < toFillSymbolNum; ++i) {
+                this.addRandomSymbolAtTop();
+            }
+        }
+    }
+
+    addRandomSymbolAtTop() {
+        const randomArr = Array.from({ length: GAMECFG.SYMBOLNUM }, (_, i) => i);
+        const randomSymbolID = Phaser.Utils.Array.GetRandom(randomArr);
+        const textureName = 'symbol' + randomSymbolID.toString();
+        const posY = this.topSymbol.y - GAMECFG.SYMBOLHEIGHT;
+        this.scene.board.addSymbolToBoard(this.topSymbol.x, posY, textureName, this);
+    }
+
     async spinAccelerate(id) {
         if (this.id != id) return;
         this.state = REEL_STATE.SPIN_ACCELERATE;
         // console.log('Reel ' + this.id + ' spin accelerate');
+
+        if (this.tweenAction)
+            this.tweenAction.destroy();
+        // tween the velocity from 0 to constant speed
+        await new Promise((resolve) => {
+            this.tweenAction = this.scene.tweens.addCounter({
+                from: 0,
+                to: SPINCFG.SPIN_CONSTANT_SPEED,
+                duration: SPINCFG.SPIN_ACCELERATE_DURATION,
+                onComplete: (tween) => {
+                    this.scene.events.emit(GAME_EVENT.SPIN_CONSTANT_SPEED, this.id);
+                    resolve.call();
+                }
+            });
+            this.tweenAction.on('update', async (tween, target, key, current, previous, param) => {
+                this.spinSpeed = this.tweenAction.getValue();
+                await this.checkUpdateOutOfSightSymbols();
+                this.updateSymbolPos();
+            }, this);
+        });
     }
 
-    async checkUpdateOutOfSightSymbols() {
-        // console.log(this.scene.sys.game.loop.delta);
-        // let tween = this.tweens.add({
-        //     targets: image,
-        //     x: 500,
-        //     ease: 'Power1',
-        //     duration: 3000,
-        // });
-        // tween.on('update', listener);
+    updateSymbolPos() {
+        const dt = this.scene.sys.game.loop.delta;
+        for (const symbol of this.getChildren()) {
+            symbol.y += this.spinSpeed * dt;
+        }
+    }
+
+    async spinConstantSpeed(id) {
+        if (this.id != id) return;
+        console.log('Reel ' + this.id + ' spin at constant speed');
     }
 }

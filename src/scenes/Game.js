@@ -6,11 +6,6 @@ export class GameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'GameScene' });
 
-        this.colNum = GAMECFG.REELNUM;
-        this.rowNum = GAMECFG.ROWNUM;
-        this.padding = GAMECFG.PADDING; // 10 pixel padding
-        this.symbolWidth = GAMECFG.SYMBOLWIDTH;
-        this.symbolHeight = GAMECFG.SYMBOLHEIGHT;
         this.board;
         this.spinButton;
         this.registerEventListeners();
@@ -24,8 +19,8 @@ export class GameScene extends Phaser.Scene {
         bg.fillStyle(0xffd1dc, 1);
         bg.fillRect(0, 0, gameWidth, gameHeight);
 
-        const boardWidth = this.symbolWidth * this.colNum + this.padding * 2;
-        const boardHeight = this.symbolHeight * this.rowNum + this.padding * 2;
+        const boardWidth = GAMECFG.SYMBOLWIDTH * GAMECFG.REELNUM + GAMECFG.PADDING * 2;
+        const boardHeight = GAMECFG.SYMBOLHEIGHT * GAMECFG.ROWNUM + GAMECFG.PADDING * 2;
         const boardX = gameWidth / 2 - boardWidth / 2;
         const boardY = gameHeight / 2 - boardHeight / 2;
 
@@ -58,9 +53,9 @@ export class GameScene extends Phaser.Scene {
     randomizeBoardData() {
         let data = [];
         const randomArr = Array.from( { length: GAMECFG.SYMBOLNUM }, (_, i) => i);
-        for (let col = 0; col < this.colNum; ++col) {
+        for (let col = 0; col < GAMECFG.REELNUM; ++col) {
             data[col] = [];
-            for (let row = 0; row < this.rowNum; ++row) {
+            for (let row = 0; row < GAMECFG.ROWNUM; ++row) {
                 data[col][row] = Phaser.Utils.Array.GetRandom(randomArr);
             }
         }
