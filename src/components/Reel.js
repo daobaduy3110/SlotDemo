@@ -25,7 +25,7 @@ export default class Reel extends Phaser.GameObjects.Group {
         super(scene, null, {
             createCallback: (item) => {
                 // update the top symbol when new symbol is added
-                if (this.children.size <= 1) {
+                if (!this.topSymbol) {
                     this.topSymbol = item;
                 } else {
                     if (item.y < this.topSymbol.y) {
@@ -40,7 +40,7 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.classType = Symbol;
         this.tweenAction;   // current tween action applying on children of reel
         this.state = REEL_STATE.IDLE;
-        this.spinSpeed= 0;  // spin speed
+        this.spinSpeed = 0;  // spin speed
         this.topSymbol = null; // to keep track of the top position        
 
         const boardHeight = GAMECFG.SYMBOLHEIGHT * GAMECFG.ROWNUM + GAMECFG.PADDING * 2;
@@ -57,18 +57,8 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.scene.events.on(GAME_EVENT.SPIN_CONSTANT_SPEED, this.spinConstantSpeed, this);
     }
 
-    onAddNewItem() {
-        // update the top symbol when new symbol is added
-        if (this.children.size == 0 || (this.children.size == 1 && this.children[0] == item)) {
-            this.topSymbol = item;
-        } else {
-            if (item.y < this.topSymbol.y) {
-                this.topSymbol = item;
-            }
-        }
-    }
-
     async startSwing() {
+        // swing up a small distance before spinning down
         this.state = REEL_STATE.SPIN_START_SWING;
         // console.log('Reel ' + this.id + ' starts Swing');
         await new Promise((resolve) => {
@@ -90,19 +80,20 @@ export default class Reel extends Phaser.GameObjects.Group {
         // move out of sight symbols at the bottom to the top
         for (const symbol of this.getChildren()) {
             if (symbol.y > this.bottomBoardY + GAMECFG.SYMBOLHEIGHT / 2) {
-                symbol.y = this.topSymbol.y + GAMECFG.SYMBOLHEIGHT;
+                symbol.y = this.topSymbol.y - GAMECFG.SYMBOLHEIGHT;
                 this.topSymbol = symbol;
             }
         }
 
         // estimate the reel move distance
-        const dt = this.scene.sys.game.loop.delta;
+        const dt = this.scene.sys.game.loop.delta / 1000;
         const moveDist = dt * this.spinSpeed;
         const topSymbolFuturePosY = this.topSymbol.y + moveDist;
         if (topSymbolFuturePosY >= this.topBoardY + GAMECFG.SYMBOLHEIGHT / 2) {
             // need to add fake symbols at top
             const toFillDist = topSymbolFuturePosY - this.topBoardY - GAMECFG.SYMBOLHEIGHT / 2;
             const toFillSymbolNum = Math.ceil(toFillDist / GAMECFG.SYMBOLHEIGHT);
+            // console.log('Reel #' + this.id + ' adding ' + toFillSymbolNum + ' fake symbols');
             for (let i = 0; i < toFillSymbolNum; ++i) {
                 this.addRandomSymbolAtTop();
             }
@@ -144,14 +135,15 @@ export default class Reel extends Phaser.GameObjects.Group {
     }
 
     updateSymbolPos() {
-        const dt = this.scene.sys.game.loop.delta;
+        const dt = this.scene.sys.game.loop.delta / 1000;
+        const moveDist = dt * this.spinSpeed;
         for (const symbol of this.getChildren()) {
-            symbol.y += this.spinSpeed * dt;
+            symbol.y += moveDist;
         }
     }
 
     async spinConstantSpeed(id) {
         if (this.id != id) return;
-        console.log('Reel ' + this.id + ' spin at constant speed');
+        console.log('Reel ' + this.id + ' spin at constant speed. Child num = ' + this.children.size);
     }
 }
