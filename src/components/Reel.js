@@ -12,9 +12,6 @@ const REEL_STATE = {
     SPIN_TO_RESULT: 'spinToResult',
     SPIN_STOP_SWING: 'spinStopSwing',
 
-    SPIN_START: 'spinStart',
-    SPIN_WAIT_RESULT: 'spinWaitResult',
-    SPIN_TO_RESULT: 'spinToResult',
     SHOW_WIN: 'showWin'
 }
 
@@ -41,7 +38,8 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.tweenAction;   // current tween action applying on children of reel
         this.state = REEL_STATE.IDLE;
         this.spinSpeed = 0;  // spin speed
-        this.topSymbol = null; // to keep track of the top position        
+        this.topSymbol = null; // to keep track of the top position
+        this.spinResult = [];   
 
         const boardHeight = GAMECFG.SYMBOLHEIGHT * GAMECFG.ROWNUM + GAMECFG.PADDING * 2;
         this.topBoardY = this.scene.game.config.height / 2 - boardHeight / 2;
@@ -55,11 +53,14 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.scene.events.on(GAME_EVENT.SPIN_START_SWING, this.startSwing, this);
         this.scene.events.on(GAME_EVENT.SPIN_ACCELERATE, this.spinAccelerate, this);
         this.scene.events.on(GAME_EVENT.SPIN_CONSTANT_SPEED, this.spinConstantSpeed, this);
+        this.scene.events.on(GAME_EVENT.SPIN_DECELERATE, this.spinDecelerate, this);
+        this.scene.events.on(GAME_EVENT.SPIN_CONSTANT_STOP_SPEED, this.spinToResult, this);
     }
 
     async startSwing() {
         // swing up a small distance before spinning down
         this.state = REEL_STATE.SPIN_START_SWING;
+        this.spinResult = [];
         // console.log('Reel ' + this.id + ' starts Swing');
         await new Promise((resolve) => {
             this.tweenAction = this.scene.tweens.add({
@@ -113,8 +114,10 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.state = REEL_STATE.SPIN_ACCELERATE;
         // console.log('Reel ' + this.id + ' spin accelerate');
 
-        if (this.tweenAction)
+        if (this.tweenAction.isPlaying()) {
+            this.tweenAction.complete();
             this.tweenAction.destroy();
+        }
         // tween the velocity from 0 to constant speed
         await new Promise((resolve) => {
             this.tweenAction = this.scene.tweens.addCounter({
@@ -122,6 +125,7 @@ export default class Reel extends Phaser.GameObjects.Group {
                 to: SPINCFG.SPIN_CONSTANT_SPEED,
                 duration: SPINCFG.SPIN_ACCELERATE_DURATION,
                 onComplete: (tween) => {
+                    this.state = REEL_STATE.SPIN_CONSTANT_SPEED;
                     this.scene.events.emit(GAME_EVENT.SPIN_CONSTANT_SPEED, this.id);
                     resolve.call();
                 }
@@ -146,8 +150,11 @@ export default class Reel extends Phaser.GameObjects.Group {
         if (this.id != id) return;
         this.state = REEL_STATE.SPIN_CONSTANT_SPEED;
         // console.log('Reel ' + this.id + ' spin at constant speed. Child num = ' + this.children.size);
+        if (this.tweenAction.isPlaying()) {
+            this.tweenAction.complete();
+        }
         await new Promise((resolve) => {
-            this.tweenAction = this.scene.tweens.addCounter({
+            this.scene.tweens.addCounter({
                 from: 0,
                 to: 5,
                 duration: 5,
@@ -161,5 +168,64 @@ export default class Reel extends Phaser.GameObjects.Group {
                 }
             });
         });
+    }
+
+    async spinDecelerate(boardData) {
+        if (this.tweenAction.isPlaying()) {
+            this.tweenAction.stop();
+        }
+        this.spinResult = boardData[this.id];
+        this.state = REEL_STATE.SPIN_DECELERATE;
+        await new Promise((resolve) => {
+            this.tweenAction = this.scene.tweens.addCounter({
+                from: SPINCFG.SPIN_CONSTANT_SPEED,
+                to: SPINCFG.SPIN_CONSTANT_STOP_SPEED,
+                duration: SPINCFG.SPIN_DECELERATE_DURATION,
+                onComplete: (tween) => {
+                    this.state = REEL_STATE.SPIN_CONSTANT_STOP_SPEED;
+                    this.scene.events.emit(GAME_EVENT.SPIN_CONSTANT_STOP_SPEED, this.id);
+                    resolve.call();
+                }
+            });
+            this.tweenAction.on('update', async (tween, target, key, current, previous, param) => {
+                this.spinSpeed = this.tweenAction.getValue();
+                await this.checkUpdateOutOfSightSymbols();
+                this.updateSymbolPos();
+            }, this);
+        });
+    }
+
+    async spinToResult(id) {
+        if (this.id != id) return;
+        this.state = REEL_STATE.SPIN_CONSTANT_STOP_SPEED;
+        if (this.tweenAction.isPlaying()) {
+            this.tweenAction.complete();
+        }
+        console.log('Reel ' + this.id + ' spin to result');
+        // remove out of sight symbols
+
+        // add result symbol at tops
+
+        // tween to result
+        // console.log('Reel ' + this.id + ' spin at constant stop speed. Child num = ' + this.children.size);
+        // await new Promise((resolve) => {
+        //     this.tweenAction = this.scene.tweens.addCounter({
+        //         from: 0,
+        //         to: 5,
+        //         duration: 5,
+        //         repeat: -1,
+        //         onUpdate: async (tween, target, key, current, previous, param) => {
+        //             await this.checkUpdateOutOfSightSymbols();
+        //             this.updateSymbolPos();
+        //         },
+        //         onStop: (tween, targets) => { 
+        //             resolve.call();
+        //         }
+        //     });
+        // });
+    }
+
+    reachConstantSpeed() {
+        return this.state == REEL_STATE.SPIN_CONSTANT_SPEED;
     }
 }

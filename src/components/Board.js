@@ -23,6 +23,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
         this.boardData = [];
         this.state = BOARD_STATE.IDLE;
         this.registerEventListeners();
+        this.allReelsReachConstantSpeed = false;
 
         scene.add.existing(this);
     }
@@ -46,6 +47,8 @@ export default class Board extends Phaser.GameObjects.Sprite {
 
     registerEventListeners() {
         this.scene.events.on(GAME_EVENT.PRESS_SPIN, this.onSpinPressed, this);
+        this.scene.events.on(GAME_EVENT.SPIN_CONSTANT_SPEED, this.onReelReachConstantSpeed, this);
+        this.scene.events.on(GAME_EVENT.SPIN_WAIT_RESULT, this.onWaitForResult, this);
     }
 
     async onSpinPressed() {
@@ -53,6 +56,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
             // this.emit(GAME_EVENT.SPIN_START);   // unused for now
             this.state = BOARD_STATE.SPIN_START;
             this.scene.events.emit(GAME_EVENT.SPIN_START_SWING);
+            this.allReelsReachConstantSpeed = false;
         } else {
             console.log('Not able to spin, board is not idle!');
         }
@@ -88,6 +92,36 @@ export default class Board extends Phaser.GameObjects.Sprite {
         if (reel) {
             reel.add(symbol);
         }
+    }
+
+    onReelReachConstantSpeed(id) {
+        let result = true;
+        for (let col = 0; col < GAMECFG.REELNUM; ++col) {
+            if (!this.reels[col].reachConstantSpeed()) {
+                result = false;
+                break;
+            }
+        }
+        if (result) {
+            this.state = BOARD_STATE.SPIN_WAIT_RESULT;
+            this.scene.events.emit(GAME_EVENT.SPIN_WAIT_RESULT);
+        }
+    }
+
+    async onWaitForResult() {
+        // generate result after a delay
+        await new Promise((resolve) => {
+            this.scene.tweens.addCounter({
+                from: 0,
+                to: 2,
+                duration: 2,
+                onComplete: (tween) => {
+                    this.boardData = this.scene.randomizeBoardData();
+                    this.scene.events.emit(GAME_EVENT.SPIN_DECELERATE, this.boardData);
+                    resolve.call();
+                }
+            });
+        });
     }
 
 }
