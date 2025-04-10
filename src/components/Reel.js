@@ -5,10 +5,10 @@ const REEL_STATE = {
     IDLE: 'idle',
     SPIN_START_SWING: 'spinStartSwing',
     SPIN_ACCELERATE: 'spinAccelerate',
-    SPIN_CONSTANT_VELOCITY: 'spinConstantVelocity',
+    SPIN_CONSTANT_SPEED: 'spinConstantVelocity',
     SPIN_RECEIVED_RESULT: 'spinReceivedResult',
     SPIN_DECELERATE: 'spinDecelerate',
-    SPIN_CONSTANT_STOP_VELOCITY: 'spinConstantStopVelocity',
+    SPIN_CONSTANT_STOP_SPEED: 'spinConstantStopVelocity',
     SPIN_TO_RESULT: 'spinToResult',
     SPIN_STOP_SWING: 'spinStopSwing',
 
@@ -144,6 +144,22 @@ export default class Reel extends Phaser.GameObjects.Group {
 
     async spinConstantSpeed(id) {
         if (this.id != id) return;
-        console.log('Reel ' + this.id + ' spin at constant speed. Child num = ' + this.children.size);
+        this.state = REEL_STATE.SPIN_CONSTANT_SPEED;
+        // console.log('Reel ' + this.id + ' spin at constant speed. Child num = ' + this.children.size);
+        await new Promise((resolve) => {
+            this.tweenAction = this.scene.tweens.addCounter({
+                from: 0,
+                to: 5,
+                duration: 5,
+                repeat: -1,
+                onUpdate: async (tween, target, key, current, previous, param) => {
+                    await this.checkUpdateOutOfSightSymbols();
+                    this.updateSymbolPos();
+                },
+                onStop: (tween, targets) => { 
+                    resolve.call();
+                }
+            });
+        });
     }
 }
