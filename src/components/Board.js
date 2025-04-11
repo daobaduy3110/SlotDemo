@@ -49,6 +49,8 @@ export default class Board extends Phaser.GameObjects.Sprite {
         this.scene.events.on(GAME_EVENT.PRESS_SPIN, this.onSpinPressed, this);
         this.scene.events.on(GAME_EVENT.SPIN_CONSTANT_SPEED, this.onReelReachConstantSpeed, this);
         this.scene.events.on(GAME_EVENT.SPIN_WAIT_RESULT, this.onWaitForResult, this);
+        this.scene.events.on(GAME_EVENT.SPIN_END, this.onReelSpinEnd, this);
+        this.scene.events.on(GAME_EVENT.SHOW_WIN, this.showWin, this);
     }
 
     async onSpinPressed() {
@@ -124,4 +126,23 @@ export default class Board extends Phaser.GameObjects.Sprite {
         });
     }
 
+    async onReelSpinEnd(id) {
+        let result = true;
+        for (let col = 0; col < GAMECFG.REELNUM; ++col) {
+            if (!this.reels[col].isEndSpin()) {
+                result = false;
+                break;
+            }
+        }
+        if (result) {
+            this.state = BOARD_STATE.SHOW_WIN;
+            this.scene.events.emit(GAME_EVENT.SHOW_WIN);
+        }
+    }
+
+    async showWin() {
+        console.log('Show win');
+        // test
+        this.state = BOARD_STATE.IDLE;
+    }
 }

@@ -8,10 +8,9 @@ const REEL_STATE = {
     SPIN_CONSTANT_SPEED: 'spinConstantVelocity',
     SPIN_RECEIVED_RESULT: 'spinReceivedResult',
     SPIN_DECELERATE: 'spinDecelerate',
-    SPIN_CONSTANT_STOP_SPEED: 'spinConstantStopVelocity',
     SPIN_TO_RESULT: 'spinToResult',
-    SPIN_STOP_SWING: 'spinStopSwing',
-
+    SPIN_END_SWING: 'spinEndSwing',
+    SPIN_END: 'spinEnd',
     SHOW_WIN: 'showWin'
 }
 
@@ -54,7 +53,9 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.scene.events.on(GAME_EVENT.SPIN_ACCELERATE, this.spinAccelerate, this);
         this.scene.events.on(GAME_EVENT.SPIN_CONSTANT_SPEED, this.spinConstantSpeed, this);
         this.scene.events.on(GAME_EVENT.SPIN_DECELERATE, this.spinDecelerate, this);
-        this.scene.events.on(GAME_EVENT.SPIN_CONSTANT_STOP_SPEED, this.spinToResult, this);
+        this.scene.events.on(GAME_EVENT.SPIN_TO_RESULT, this.spinToResult, this);
+        this.scene.events.on(GAME_EVENT.SPIN_END_SWING, this.swingAtSpinEnd, this);   
+        this.scene.events.on(GAME_EVENT.SHOW_WIN, this.showWin, this);   
     }
 
     async startSwing() {
@@ -74,7 +75,6 @@ export default class Reel extends Phaser.GameObjects.Group {
             });
         });
         this.scene.events.emit(GAME_EVENT.SPIN_ACCELERATE, this.id);
-        return;
     }
 
     async checkUpdateOutOfSightSymbols() {
@@ -125,17 +125,17 @@ export default class Reel extends Phaser.GameObjects.Group {
                 to: SPINCFG.SPIN_CONSTANT_SPEED,
                 duration: SPINCFG.SPIN_ACCELERATE_DURATION,
                 onComplete: (tween) => {
-                    this.state = REEL_STATE.SPIN_CONSTANT_SPEED;
-                    this.scene.events.emit(GAME_EVENT.SPIN_CONSTANT_SPEED, this.id);
                     resolve.call();
+                },
+                onUpdate: async (tween, target, key, current, previous, param) => {
+                    this.spinSpeed = this.tweenAction.getValue();
+                    await this.checkUpdateOutOfSightSymbols();
+                    this.updateSymbolPos();
                 }
             });
-            this.tweenAction.on('update', async (tween, target, key, current, previous, param) => {
-                this.spinSpeed = this.tweenAction.getValue();
-                await this.checkUpdateOutOfSightSymbols();
-                this.updateSymbolPos();
-            }, this);
         });
+        this.state = REEL_STATE.SPIN_CONSTANT_SPEED;
+        this.scene.events.emit(GAME_EVENT.SPIN_CONSTANT_SPEED, this.id);
     }
 
     updateSymbolPos() {
@@ -154,7 +154,7 @@ export default class Reel extends Phaser.GameObjects.Group {
             this.tweenAction.complete();
         }
         await new Promise((resolve) => {
-            this.scene.tweens.addCounter({
+            this.tweenAction = this.scene.tweens.addCounter({
                 from: 0,
                 to: 5,
                 duration: 5,
@@ -171,6 +171,20 @@ export default class Reel extends Phaser.GameObjects.Group {
     }
 
     async spinDecelerate(boardData) {
+        // delay first
+        const delayDuration = SPINCFG.SPIN_START_DELAY * this.id;
+        await new Promise((resolve) => {
+            const delayCounter = this.scene.tweens.addCounter({
+                from: 0,
+                to: delayDuration,
+                duration: delayDuration,
+                onComplete: (tween) => {
+                    resolve.call();
+                    delayCounter.stop();
+                }
+            });
+        });
+
         if (this.tweenAction.isPlaying()) {
             this.tweenAction.stop();
         }
@@ -179,53 +193,123 @@ export default class Reel extends Phaser.GameObjects.Group {
         await new Promise((resolve) => {
             this.tweenAction = this.scene.tweens.addCounter({
                 from: SPINCFG.SPIN_CONSTANT_SPEED,
-                to: SPINCFG.SPIN_CONSTANT_STOP_SPEED,
+                to: SPINCFG.SPIN_TO_RESULT_SPEED,
                 duration: SPINCFG.SPIN_DECELERATE_DURATION,
                 onComplete: (tween) => {
-                    this.state = REEL_STATE.SPIN_CONSTANT_STOP_SPEED;
-                    this.scene.events.emit(GAME_EVENT.SPIN_CONSTANT_STOP_SPEED, this.id);
                     resolve.call();
+                },
+                onUpdate: async (tween, target, key, current, previous, param) => {
+                    this.spinSpeed = this.tweenAction.getValue();
+                    await this.checkUpdateOutOfSightSymbols();
+                    this.updateSymbolPos();
                 }
             });
-            this.tweenAction.on('update', async (tween, target, key, current, previous, param) => {
-                this.spinSpeed = this.tweenAction.getValue();
-                await this.checkUpdateOutOfSightSymbols();
-                this.updateSymbolPos();
-            }, this);
         });
+        this.spinSpeed = SPINCFG.SPIN_TO_RESULT_SPEED;
+        this.scene.events.emit(GAME_EVENT.SPIN_TO_RESULT, this.id);
     }
 
     async spinToResult(id) {
         if (this.id != id) return;
-        this.state = REEL_STATE.SPIN_CONSTANT_STOP_SPEED;
+        this.state = REEL_STATE.SPIN_TO_RESULT;
         if (this.tweenAction.isPlaying()) {
             this.tweenAction.complete();
         }
-        console.log('Reel ' + this.id + ' spin to result');
+        // console.log('Reel ' + this.id + ' spin to result');
         // remove out of sight symbols
+        let it;
+        const childrenSize = this.getChildren().length;
+        for (let i = childrenSize - 1; i >= 0; --i) {   // removing elements while iterate the array needs to iterate from end to begin
+            it = this.getChildren()[i];
+            if (it.y > this.bottomBoardY + GAMECFG.SYMBOLHEIGHT / 2 || it.y < this.topBoardY - GAMECFG.SYMBOLHEIGHT / 2) {
+                this.remove(this.getChildren()[i], true);                
+            }
+        }        
+        // update top symbol
+        this.topSymbol = this.getChildren()[0];
+        for (const symbol of this.getChildren()) {
+            if (symbol.y < this.topSymbol.y) {
+                this.topSymbol = symbol;
+            }
+        }
 
-        // add result symbol at tops
+        // add result symbol at tops, bottom first
+        let symbolID;
+        for (let i = this.spinResult.length - 1; i >= 0; --i) {
+            symbolID = this.spinResult[i];
+            const textureName = 'symbol' + symbolID.toString();
+            const posY = this.topSymbol.y - GAMECFG.SYMBOLHEIGHT;
+            this.scene.board.addSymbolToBoard(this.topSymbol.x, posY, textureName, this);
+        }
 
-        // tween to result
-        // console.log('Reel ' + this.id + ' spin at constant stop speed. Child num = ' + this.children.size);
-        // await new Promise((resolve) => {
-        //     this.tweenAction = this.scene.tweens.addCounter({
-        //         from: 0,
-        //         to: 5,
-        //         duration: 5,
-        //         repeat: -1,
-        //         onUpdate: async (tween, target, key, current, previous, param) => {
-        //             await this.checkUpdateOutOfSightSymbols();
-        //             this.updateSymbolPos();
-        //         },
-        //         onStop: (tween, targets) => { 
-        //             resolve.call();
-        //         }
-        //     });
-        // });
+        // spin to result
+        const distanceToResult = this.topBoardY + GAMECFG.SYMBOLHEIGHT / 2 - this.topSymbol.y/*  + SPINCFG.END_SWING_DISTANCE */;
+        const tweenDuration = distanceToResult / this.spinSpeed * 1000; // tween duration use ms unit
+        await new Promise((resolve) => {
+            this.tweenAction = this.scene.tweens.addCounter({
+                from: 0,
+                to: tweenDuration,
+                duration: tweenDuration,
+                onComplete: (tween) => {
+                    resolve.call();
+                },
+                onUpdate: async (tween, target, key, current, previous, param) => {
+                    this.updateSymbolPos();
+                }
+            });
+            // this.tweenAction.on('update', async (tween, target, key, current, previous, param) => {
+            //     this.updateSymbolPos();
+            // }, this);
+        });
+
+        // remove all symbols, except the result symbols, which were added last
+        const newChildrenSize = this.getChildren().length;
+        if (newChildrenSize > this.spinResult.length) {
+            for (let i = newChildrenSize - this.spinResult.length - 1; i >= 0; --i) {   // removing elements while iterate the array needs to iterate from end to begin
+                this.remove(this.getChildren()[i], true);
+            }   
+        }
+
+        this.scene.events.emit(GAME_EVENT.SPIN_END_SWING, this.id);
+    }
+
+    async swingAtSpinEnd(id) {
+        if (this.id != id) return;
+        this.state = REEL_STATE.SPIN_END_SWING;
+        // swing down a small distance before swing back and stop
+        if (this.tweenAction.isPlaying()) {
+            this.tweenAction.complete();
+        }
+        await new Promise((resolve) => {
+            this.tweenAction = this.scene.tweens.add({
+                targets: this.getChildren(),
+                y: '+=' + SPINCFG.END_SWING_DISTANCE,
+                duration: SPINCFG.END_SWING_DURATION,
+                yoyo: true,
+                // ease: 'Bounce',
+                onComplete: (tween) => {
+                    resolve.call();
+                }
+            });
+        });
+        this.state = REEL_STATE.SPIN_END;
+        this.scene.events.emit(GAME_EVENT.SPIN_END, this.id);
+        // console.log('Reel ' + this.id + ' end spin ' + this.spinResult.toString());
+        if (this.tweenAction.isPlaying()) {
+            this.tweenAction.complete();
+        }
+    }
+
+    async showWin() {
+        // test
+        this.state = REEL_STATE.IDLE;
     }
 
     reachConstantSpeed() {
         return this.state == REEL_STATE.SPIN_CONSTANT_SPEED;
+    }
+
+    isEndSpin() {
+        return this.state == REEL_STATE.SPIN_END;
     }
 }

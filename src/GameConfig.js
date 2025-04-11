@@ -26,9 +26,9 @@ export const GAME_EVENT = {
     SPIN_CONSTANT_SPEED: 'spinConstantVelocity',
     SPIN_RECEIVED_RESULT: 'spinReceivedResult',
     SPIN_DECELERATE: 'spinDecelerate',
-    SPIN_CONSTANT_STOP_SPEED: 'spinConstantStopVelocity',
     SPIN_TO_RESULT: 'spinToResult',
-    SPIN_STOP_SWING: 'spinStopSwing'
+    SPIN_END_SWING: 'spinEndSwing',
+    SPIN_END: 'spinEnd',
 }
 
 export const SPINCFG = {
@@ -36,7 +36,9 @@ export const SPINCFG = {
     SWING_DISTANCE: 30,
     SPIN_START_DELAY: 150,
     SPIN_ACCELERATE_DURATION: 700,
-    SPIN_CONSTANT_SPEED: 2000,
-    SPIN_DECELERATE_DURATION: 400,
-    SPIN_STOP_SPEED: 400,
+    SPIN_CONSTANT_SPEED: 2500,
+    SPIN_DECELERATE_DURATION: 700,
+    SPIN_TO_RESULT_SPEED: 1200,
+    END_SWING_DURATION: 150,
+    END_SWING_DISTANCE: 30,
 }
