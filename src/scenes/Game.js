@@ -83,30 +83,28 @@ export class GameScene extends Phaser.Scene {
     async showWinAnim() {
         const winLines = await this.calculateWinLines(this.board.boardData);
         let promChain = Promise.resolve();
-        let promList = [];
         let posList = [];
         for (const winLine of winLines) {
-            console.log('Win line ' + winLine.toString())
-            promList = [];
+            console.log('Win line ' + winLine.toString());
             posList = winLine.positions;
-            promList.push(this.board.showWinSymbols(posList));
-            promList.push(this.displayWinAmount(winLine.winAmount, true, false));
-            promChain = promChain.then(() => {
-                return Promise.all(promList);
-            });
+            await Promise.all([
+                this.board.showWinSymbols(posList),
+                this.displayWinAmount(winLine.winAmount, true, false)
+            ]);
             // delay 1 sec
-            promChain = promChain.then(new Promise(async (resolve) => {
-                // delay 1 sec
-                let tweenCounter = await this.tweens.addCounter({
+            let tweenCounter;
+            await new Promise(async (resolve) => {
+                // delay 0.3 sec
+                tweenCounter = await this.tweens.addCounter({
                     from: 0,
                     to: 1,
-                    duration: 1000,
+                    duration: 300,
                     onComplete: (tween) => {
                         resolve.call();
                     }
                 });
-                tweenCounter.stop();
-            }));
+            });
+            tweenCounter.stop();
         }
         return promChain;
     }
@@ -126,10 +124,11 @@ export class GameScene extends Phaser.Scene {
         });
         promList.push(this.board.showWinSymbols(posList));
         promList.push(this.displayWinAmount(totalWinAmount, false, true));
-        await Promise.all(promList)
-        await new Promise(async (resolve) => {
+        await Promise.all(promList);
+        let tweenCounter;
+        await new Promise( (resolve) => {
             // delay 1 sec
-            let tweenCounter = await this.tweens.addCounter({
+            tweenCounter = this.tweens.addCounter({
                 from: 0,
                 to: 1,
                 duration: 1000,
@@ -137,8 +136,8 @@ export class GameScene extends Phaser.Scene {
                     resolve.call();
                 }
             });
-            tweenCounter.stop();
         });
+        tweenCounter.stop();
     }
 
     async calculateWinLines(boardData) {
