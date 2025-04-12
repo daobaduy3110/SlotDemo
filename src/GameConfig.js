@@ -15,7 +15,7 @@ export const GAMECFG = {
     PADDING: 10,
     SYMBOLWIDTH: 145,
     SYMBOLHEIGHT: 145,
-    SYMBOLNUM: 9
+    SYMBOLNUM: 3
 }
 
 export const GAME_EVENT = {
@@ -29,6 +29,9 @@ export const GAME_EVENT = {
     SPIN_TO_RESULT: 'spinToResult',
     SPIN_END_SWING: 'spinEndSwing',
     SPIN_END: 'spinEnd',
+    SHOW_WIN: 'showWin',
+    // SHOW_INFOBAR_WIN: 'showInfobarWin',
+    SHOW_WIN_END: 'showWinEnd',
 }
 
 export const SPINCFG = {

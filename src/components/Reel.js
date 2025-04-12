@@ -38,7 +38,8 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.state = REEL_STATE.IDLE;
         this.spinSpeed = 0;  // spin speed
         this.topSymbol = null; // to keep track of the top position
-        this.spinResult = [];   
+        this.symbolList = [];
+        this.spinResult = [];
 
         const boardHeight = GAMECFG.SYMBOLHEIGHT * GAMECFG.ROWNUM + GAMECFG.PADDING * 2;
         this.topBoardY = this.scene.game.config.height / 2 - boardHeight / 2;

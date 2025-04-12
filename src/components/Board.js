@@ -1,6 +1,7 @@
 import { GAMECFG, GAME_EVENT } from '../GameConfig.js'
 import Symbol from './Symbol.js'
 import Reel from '../components/Reel.js'
+import WinLine from './WinLine.js'
 
 const BOARD_STATE = {
     IDLE: 'idle',
@@ -24,6 +25,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
         this.state = BOARD_STATE.IDLE;
         this.registerEventListeners();
         this.allReelsReachConstantSpeed = false;
+        this.showWinTween;
 
         scene.add.existing(this);
     }
@@ -50,7 +52,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
         this.scene.events.on(GAME_EVENT.SPIN_CONSTANT_SPEED, this.onReelReachConstantSpeed, this);
         this.scene.events.on(GAME_EVENT.SPIN_WAIT_RESULT, this.onWaitForResult, this);
         this.scene.events.on(GAME_EVENT.SPIN_END, this.onReelSpinEnd, this);
-        this.scene.events.on(GAME_EVENT.SHOW_WIN, this.showWin, this);
+        this.scene.events.on(GAME_EVENT.SHOW_WIN_END, this.onShowWinEnd, this);
     }
 
     async onSpinPressed() {
@@ -112,8 +114,9 @@ export default class Board extends Phaser.GameObjects.Sprite {
 
     async onWaitForResult() {
         // generate result after a delay
+        let tweenCounter;
         await new Promise((resolve) => {
-            this.scene.tweens.addCounter({
+            tweenCounter = this.scene.tweens.addCounter({
                 from: 0,
                 to: 2,
                 duration: 2,
@@ -124,6 +127,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
                 }
             });
         });
+        tweenCounter.stop();
     }
 
     async onReelSpinEnd(id) {
@@ -140,9 +144,29 @@ export default class Board extends Phaser.GameObjects.Sprite {
         }
     }
 
-    async showWin() {
-        console.log('Show win');
-        // test
+    async showWinSymbols(posList) {
+        let targetSymbols = [];
+        for (const pos of posList) {
+            targetSymbols.push(this.reels[pos.col].getChildren()[GAMECFG.ROWNUM - 1- pos.row]);   // reel children are in reverse order, bottom to top
+        }
+        await new Promise((resolve) => {
+            this.showWinTween = this.scene.tweens.add({
+                targets: targetSymbols,
+                scale: {
+                    from: 1,
+                    to: 1.5,
+                },
+                duration: 300,
+                repeat: 1,
+                yoyo: true,
+                onComplete: (tween) => {
+                    resolve.call();
+                }
+            });
+        });
+    }
+
+    async onShowWinEnd() {
         this.state = BOARD_STATE.IDLE;
     }
 }

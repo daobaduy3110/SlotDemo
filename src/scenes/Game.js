@@ -1,6 +1,8 @@
 import Symbol from '../components/Symbol.js'
 import Board from '../components/Board.js'
+import BoardPos from '../utils/BoardPos.js'
 import { GAMECFG, GAME_EVENT } from '../GameConfig.js'
+import WinLine from '../components/WinLine.js'
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -8,10 +10,13 @@ export class GameScene extends Phaser.Scene {
 
         this.board;
         this.spinButton;
-        this.registerEventListeners();
+        this.infoBarText;
+        this.infoBarTween;
     }
 
     create() {
+        this.registerEventListeners();
+
         const gameWidth = this.game.config.width;
         const gameHeight = this.game.config.height;
         // background
@@ -44,10 +49,16 @@ export class GameScene extends Phaser.Scene {
         this.spinButton.on('pointerup', function (pointer, localX, localY, event) {
             this.events.emit(GAME_EVENT.PRESS_SPIN);
         }, this);
+
+        // infor bar text
+        this.infoBarText = this.add.text(gameWidth / 2, gameHeight + 80, 'WIN ', { fontSize: '16px', fill: '#FFF' }).setVisible(false);
     }
 
     registerEventListeners() {
-        
+        this.events.on(GAME_EVENT.SHOW_WIN, this.showWin, this);  
+        this.events.on(GAME_EVENT.PRESS_SPIN, () => {
+            this.infoBarText.setVisible(false);
+        }); 
     }
 
     randomizeBoardData() {
@@ -59,55 +70,168 @@ export class GameScene extends Phaser.Scene {
                 data[col][row] = Phaser.Utils.Array.GetRandom(randomArr);
             }
         }
+        console.log('Random board data ' + data.toString());
         return data;
     }
 
-    // Add a new tile (2 or 4) to a random empty cell
-    addTile() {
-        const emptyTiles = [];
+    async showWin() {
+        await this.showWinAnim();
+        await this.showTotalWinAnim();
+        this.events.emit(GAME_EVENT.SHOW_WIN_END);
+    }
 
-        // Find all empty tiles
-        for (let row = 0; row < this.boardSize; row++) {
-            for (let col = 0; col < this.boardSize; col++) {
-                if (this.fieldArray[row][col].tileValue === 0) {
-                    emptyTiles.push({
-                        row: row,
-                        col: col
-                    });
+    async showWinAnim() {
+        const winLines = await this.calculateWinLines(this.board.boardData);
+        let promChain = Promise.resolve();
+        let promList = [];
+        let posList = [];
+        for (const winLine of winLines) {
+            console.log('Win line ' + winLine.toString())
+            promList = [];
+            posList = winLine.positions;
+            promList.push(this.board.showWinSymbols(posList));
+            promList.push(this.displayWinAmount(winLine.winAmount, true, false));
+            promChain = promChain.then(() => {
+                return Promise.all(promList);
+            });
+            // delay 1 sec
+            promChain = promChain.then(new Promise(async (resolve) => {
+                // delay 1 sec
+                let tweenCounter = await this.tweens.addCounter({
+                    from: 0,
+                    to: 1,
+                    duration: 1000,
+                    onComplete: (tween) => {
+                        resolve.call();
+                    }
+                });
+                tweenCounter.stop();
+            }));
+        }
+        return promChain;
+    }
+
+    async showTotalWinAnim() {
+        const winLines = await this.calculateWinLines(this.board.boardData);
+        let promList = [];
+        let posList = [];
+        let totalWinAmount = 0;
+        for (const winLine of winLines) {
+            posList = posList.concat(winLine.positions);
+            totalWinAmount += winLine.winAmount;
+        }
+        // make unique array
+        posList = posList.filter((value, index, array) => {
+            return array.findIndex((v) => (v.col == value.col && v.row == value.row)) === index;
+        });
+        promList.push(this.board.showWinSymbols(posList));
+        promList.push(this.displayWinAmount(totalWinAmount, false, true));
+        await Promise.all(promList)
+        await new Promise(async (resolve) => {
+            // delay 1 sec
+            let tweenCounter = await this.tweens.addCounter({
+                from: 0,
+                to: 1,
+                duration: 1000,
+                onComplete: (tween) => {
+                    resolve.call();
                 }
+            });
+            tweenCounter.stop();
+        });
+    }
+
+    async calculateWinLines(boardData) {
+        // a win happens when the same symbol appear on at least 3 consecutive reels, starting from reel #1
+        let winLines = [];
+        let firstCol = boardData[0];
+        let symbolID = -1, foundIdList = [], winAmount = 0;
+        let consecutivePos = [];    // [ [{0,1}], [{1,0},{1,1}], [{2, 2}] ]
+        for (let row = 0; row < GAMECFG.ROWNUM; ++row) {
+            consecutivePos = [];
+            consecutivePos[0] = [];
+            consecutivePos[0].push(new BoardPos(0, row));
+            symbolID = firstCol[row];
+            // check appearance on consecutive reels
+            let col = 1;
+            while (col < GAMECFG.REELNUM) {
+                foundIdList = boardData[col].reduce((prev, cur, index) => {
+                    if (cur == symbolID)
+                        prev.push(index);
+                    return prev;
+                }, []);
+                if (foundIdList.length > 0) {
+                    consecutivePos[col] = [];
+                    for (const foundID of foundIdList) {
+                        consecutivePos[col].push(new BoardPos(col, foundID));
+                    }
+                    ++col;
+                } else {
+                    break;
+                }
+            }
+            if (consecutivePos.length >= 3) {
+                // valid win line
+                winAmount = (consecutivePos.length - 2) * 5;
+                const winLinePosList = this.generateWinLineList(consecutivePos);
+                const winLineList = Array.from(winLinePosList, (v) => new WinLine(v, symbolID, winAmount));
+                winLines = winLines.concat(winLineList);
+            }
+        }
+        return winLines;
+    }
+
+    generateWinLineList(consecutivePos) {
+        const result = [];
+
+        const backtrack = (path, colIndex) => {
+            if (colIndex === consecutivePos.length) {
+                result.push([...path]);
+                return;
+            }
+
+            for (const element of consecutivePos[colIndex]) {
+                path.push(element);
+                backtrack(path, colIndex + 1);
+                path.pop();
             }
         }
 
-        if (emptyTiles.length === 0) return false;
+        backtrack([], 0);
+        return result;
+    }
 
-        // Choose a random empty tile
-        const chosenTile = Phaser.Utils.Array.GetRandom(emptyTiles);
+    async displayWinAmount(winAmount, useIncrement, isTotal) {
+        const totalText = (isTotal ? 'TOTAL WIN ' : 'WIN ');
+        this.infoBarText.setVisible(true);
+        if (!useIncrement) {
+            this.infoBarText.setText(totalText + winAmount.toLocaleString(
+                undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+            ));
+            return;
+        }
 
-        // 90% chance for a 2, 10% chance for a 4
-        const value = Math.random() < 0.9 ? 2 : 4;
-
-        // Update the tile value
-        this.fieldArray[chosenTile.row][chosenTile.col].tileValue = value;
-        const tileSprite = this.fieldArray[chosenTile.row][chosenTile.col].tileSprite;
-
-        // Update the sprite texture based on value
-        tileSprite.setTexture(`tile${value}`);
-        tileSprite.setVisible(true);
-
-        // Animate the new tile appearing
-        tileSprite.setScale(0);
-        this.tweens.add({
-            targets: [tileSprite],
-            scale: 0.8,
-            alpha: 1,
-            duration: this.tweenSpeed,
-            ease: 'Back.out',
-            onComplete: (tween) => {
-                // Allow the player to move again
-                this.canMove = true;
-            }
+        await new Promise((resolve) => {
+            this.infoBarTween = this.tweens.addCounter(
+                {
+                    from: 0,
+                    to: winAmount,
+                    duration: 1000,
+                    onComplete: (tween) => {
+                        this.infoBarText.setText(totalText + winAmount.toLocaleString(
+                            undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2}
+                        ));
+                        resolve.call();
+                    },
+                    onUpdate: async (tween, target, key, current, previous, param) => {
+                        let displayNum = this.infoBarTween.getValue();
+                        this.infoBarText.setText(totalText + displayNum.toLocaleString(
+                            undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2}
+                        ));
+                    }
+                }
+            )
         });
-
-        return true;
+        this.infoBarTween.complete();
     }
 }
