@@ -45,13 +45,25 @@ export class GameScene extends Phaser.Scene {
         this.board.init(boardData);
 
         // spin button
-        this.spinButton = this.add.sprite(gameWidth / 2, gameHeight - 80, 'spinButton').setInteractive();
+        this.spinButton = this.add.text(gameWidth / 2, gameHeight - 80, 'SPIN', {
+            fontSize: '36px',
+            color: '#000000',
+            backgroundColor: '#ffffff',
+            padding: { x: 20, y: 10 },
+            borderRadius: 10,
+        }).setOrigin(0.5).setInteractive();
         this.spinButton.on('pointerup', function (pointer, localX, localY, event) {
             this.events.emit(GAME_EVENT.PRESS_SPIN);
         }, this);
 
         // infor bar text
-        this.infoBarText = this.add.text(gameWidth / 2, gameHeight + 80, 'WIN ', { fontSize: '16px', fill: '#FFF' }).setVisible(false);
+        this.infoBarText = this.add.text(gameWidth / 2, 80, 'WIN ', {
+            fontSize: '36px',
+            color: '#000000',
+            backgroundColor: '#ffffff',
+            padding: { x: 20, y: 10 },
+            borderRadius: 10,
+        }).setOrigin(0.5).setVisible(false);
     }
 
     registerEventListeners() {
@@ -127,11 +139,11 @@ export class GameScene extends Phaser.Scene {
         await Promise.all(promList);
         let tweenCounter;
         await new Promise( (resolve) => {
-            // delay 1 sec
+            // delay 0.3 sec
             tweenCounter = this.tweens.addCounter({
                 from: 0,
                 to: 1,
-                duration: 1000,
+                duration: 300,
                 onComplete: (tween) => {
                     resolve.call();
                 }
@@ -201,6 +213,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     async displayWinAmount(winAmount, useIncrement, isTotal) {
+        if (!winAmount) return;
         const totalText = (isTotal ? 'TOTAL WIN ' : 'WIN ');
         this.infoBarText.setVisible(true);
         if (!useIncrement) {
@@ -215,7 +228,7 @@ export class GameScene extends Phaser.Scene {
                 {
                     from: 0,
                     to: winAmount,
-                    duration: 1000,
+                    duration: 500,
                     onComplete: (tween) => {
                         this.infoBarText.setText(totalText + winAmount.toLocaleString(
                             undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2}

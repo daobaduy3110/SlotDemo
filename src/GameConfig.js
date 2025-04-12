@@ -15,7 +15,7 @@ export const GAMECFG = {
     PADDING: 10,
     SYMBOLWIDTH: 145,
     SYMBOLHEIGHT: 145,
-    SYMBOLNUM: 3
+    SYMBOLNUM: 9
 }
 
 export const GAME_EVENT = {
