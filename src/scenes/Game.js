@@ -1,4 +1,3 @@
-import Symbol from '../components/Symbol.js'
 import Board from '../components/Board.js'
 import BoardPos from '../utils/BoardPos.js'
 import { GAMECFG, GAME_EVENT } from '../GameConfig.js'
