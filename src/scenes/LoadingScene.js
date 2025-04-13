@@ -41,8 +41,16 @@ export class LoadingScene extends Phaser.Scene {
             loadRect.setVisible(false);
             loadBar.setVisible(false);
 
+            // Add a title
+            const title = this.add.text(gameWidth / 2, gameHeight / 2 - 100, 'DUY.DB DEMO', {
+                fontSize: '70px',
+                color: '#000000',
+                padding: { x: 20, y: 10 },
+                borderRadius: 20,
+            }).setOrigin(0.5);
+
             // Add a "Start" button
-            const startButton = this.add.text(gameWidth / 2, gameHeight / 2, 'START', {
+            const startButton = this.add.text(gameWidth / 2, gameHeight / 2 + 100, 'START', {
                 fontSize: '36px',
                 color: '#000000',
                 backgroundColor: '#ffffff',
