@@ -1,5 +1,5 @@
 import Symbol from './Symbol.js'
-import { GAMECFG, GAME_EVENT, SPINCFG } from '../GameConfig.js'
+import { GAMECFG, GAME_EVENT, SPINCFG, TURBOSPINCFG } from '../GameConfig.js'
 
 const REEL_STATE = {
     IDLE: 'idle',
@@ -40,6 +40,8 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.topSymbol = null; // to keep track of the top position
         this.symbolList = [];
         this.spinResult = [];
+        this.isTurbo = false;
+        this.spinCfg = this.isTurbo ? TURBOSPINCFG : SPINCFG;
 
         const boardHeight = GAMECFG.SYMBOLHEIGHT * GAMECFG.ROWNUM + GAMECFG.PADDING * 2;
         this.topBoardY = this.scene.game.config.height / 2 - boardHeight / 2;
@@ -67,9 +69,9 @@ export default class Reel extends Phaser.GameObjects.Group {
         await new Promise((resolve) => {
             this.tweenAction = this.scene.tweens.add({
                 targets: this.getChildren(),
-                y: '-=' + SPINCFG.SWING_DISTANCE,
-                duration: SPINCFG.SWING_DURATION,
-                delay: SPINCFG.SPIN_START_DELAY * this.id,
+                y: '-=' + this.spinCfg.SWING_DISTANCE,
+                duration: this.spinCfg.SWING_DURATION,
+                delay: this.spinCfg.SPIN_START_DELAY * this.id,
                 onComplete: (tween) => {
                     resolve.call();
                 }
@@ -123,8 +125,8 @@ export default class Reel extends Phaser.GameObjects.Group {
         await new Promise((resolve) => {
             this.tweenAction = this.scene.tweens.addCounter({
                 from: 0,
-                to: SPINCFG.SPIN_CONSTANT_SPEED,
-                duration: SPINCFG.SPIN_ACCELERATE_DURATION,
+                to: this.spinCfg.SPIN_CONSTANT_SPEED,
+                duration: this.spinCfg.SPIN_ACCELERATE_DURATION,
                 onComplete: (tween) => {
                     resolve.call();
                 },
@@ -173,7 +175,7 @@ export default class Reel extends Phaser.GameObjects.Group {
 
     async spinDecelerate(boardData) {
         // delay first
-        const delayDuration = SPINCFG.SPIN_START_DELAY * this.id;
+        const delayDuration = this.spinCfg.SPIN_START_DELAY * this.id;
         await new Promise((resolve) => {
             const delayCounter = this.scene.tweens.addCounter({
                 from: 0,
@@ -193,9 +195,9 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.state = REEL_STATE.SPIN_DECELERATE;
         await new Promise((resolve) => {
             this.tweenAction = this.scene.tweens.addCounter({
-                from: SPINCFG.SPIN_CONSTANT_SPEED,
-                to: SPINCFG.SPIN_TO_RESULT_SPEED,
-                duration: SPINCFG.SPIN_DECELERATE_DURATION,
+                from: this.spinCfg.SPIN_CONSTANT_SPEED,
+                to: this.spinCfg.SPIN_TO_RESULT_SPEED,
+                duration: this.spinCfg.SPIN_DECELERATE_DURATION,
                 onComplete: (tween) => {
                     resolve.call();
                 },
@@ -206,7 +208,7 @@ export default class Reel extends Phaser.GameObjects.Group {
                 }
             });
         });
-        this.spinSpeed = SPINCFG.SPIN_TO_RESULT_SPEED;
+        this.spinSpeed = this.spinCfg.SPIN_TO_RESULT_SPEED;
         this.scene.events.emit(GAME_EVENT.SPIN_TO_RESULT, this.id);
     }
 
@@ -244,7 +246,7 @@ export default class Reel extends Phaser.GameObjects.Group {
         }
 
         // spin to result
-        const distanceToResult = this.topBoardY + GAMECFG.SYMBOLHEIGHT / 2 - this.topSymbol.y/*  + SPINCFG.END_SWING_DISTANCE */;
+        const distanceToResult = this.topBoardY + GAMECFG.SYMBOLHEIGHT / 2 - this.topSymbol.y/*  + this.spinCfg.END_SWING_DISTANCE */;
         const tweenDuration = distanceToResult / this.spinSpeed * 1000; // tween duration use ms unit
         await new Promise((resolve) => {
             this.tweenAction = this.scene.tweens.addCounter({
@@ -292,8 +294,8 @@ export default class Reel extends Phaser.GameObjects.Group {
         await new Promise((resolve) => {
             this.tweenAction = this.scene.tweens.add({
                 targets: this.getChildren(),
-                y: '+=' + SPINCFG.END_SWING_DISTANCE,
-                duration: SPINCFG.END_SWING_DURATION,
+                y: '+=' + this.spinCfg.END_SWING_DISTANCE,
+                duration: this.spinCfg.END_SWING_DURATION,
                 yoyo: true,
                 // ease: 'Bounce',
                 onComplete: (tween) => {
@@ -320,5 +322,10 @@ export default class Reel extends Phaser.GameObjects.Group {
 
     isEndSpin() {
         return this.state == REEL_STATE.SPIN_END;
+    }
+
+    setTurbo(v) {
+        this.isTurbo = v;
+        this.spinCfg = v ? TURBOSPINCFG : SPINCFG;
     }
 }

@@ -44,6 +44,19 @@ export class GameScene extends Phaser.Scene {
         const boardData = this.randomizeBoardData();
         this.board.init(boardData);
 
+        // turbo button
+        this.turboButton = this.add.text(100, gameHeight - 80, 'TURBO', {
+            fontSize: '36px',
+            color: '#000000',
+            backgroundColor: '#ffffff',
+            padding: { x: 20, y: 10 },
+            borderRadius: 10,
+        }).setOrigin(0.5).setInteractive();
+        this.turboButton.on('pointerup', function (pointer, localX, localY, event) {
+            this.events.emit(GAME_EVENT.PRESS_TURBO);
+        }, this);
+        this.turboButton.setBackgroundColor(this.board.isTurbo ? '#d3d3d3' : '#ffffff');
+
         // spin button
         this.spinButton = this.add.text(gameWidth / 2, gameHeight - 80, 'SPIN', {
             fontSize: '36px',

@@ -13,9 +13,10 @@ const BOARD_STATE = {
 
 export default class Board extends Phaser.GameObjects.Sprite {
     boardData = [];
-    get boardData() { return symbols; }
-    set boardData(data) { symbols = data; }
+    get boardData() { return this.boardData; }
+    set boardData(data) { this.boardData = data; }
     reels = [];
+    isTurbo = false;
 
     constructor(scene, x, y, texture) {
         super(scene, x, y, texture);
@@ -53,6 +54,8 @@ export default class Board extends Phaser.GameObjects.Sprite {
         this.scene.events.on(GAME_EVENT.SPIN_WAIT_RESULT, this.onWaitForResult, this);
         this.scene.events.on(GAME_EVENT.SPIN_END, this.onReelSpinEnd, this);
         this.scene.events.on(GAME_EVENT.SHOW_WIN_END, this.onShowWinEnd, this);
+
+        this.scene.events.on(GAME_EVENT.PRESS_TURBO, this.toggleTurbo, this);
     }
 
     async onSpinPressed() {
@@ -168,5 +171,13 @@ export default class Board extends Phaser.GameObjects.Sprite {
 
     async onShowWinEnd() {
         this.state = BOARD_STATE.IDLE;
+    }
+
+    async toggleTurbo() {
+        this.isTurbo = !this.isTurbo;
+        for (const reel of this.reels) {
+            reel.setTurbo(this.isTurbo);
+        }
+        this.scene.turboButton.setBackgroundColor(this.isTurbo ? '#d3d3d3' : '#ffffff');
     }
 }
