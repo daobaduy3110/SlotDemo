@@ -99,7 +99,10 @@ export class GameScene extends Phaser.Scene {
         this.events.on(GAME_EVENT.SHOW_WIN, this.showWin, this);  
         this.events.on(GAME_EVENT.SPIN_START_SWING, () => {
             this.infoBarText.setVisible(false);
-        }); 
+        });
+        this.input.keyboard.on('keydown-' + 'SPACE', (ev) => {
+            this.events.emit(GAME_EVENT.PRESS_SPIN);
+        });
     }
 
     randomizeBoardData() {
