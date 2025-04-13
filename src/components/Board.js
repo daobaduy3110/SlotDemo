@@ -1,4 +1,4 @@
-import { GAMECFG, GAME_EVENT } from '../GameConfig.js'
+import { GAMECFG, GAME_EVENT, TURBOSPINCFG } from '../GameConfig.js'
 import Symbol from './Symbol.js'
 import Reel from '../components/Reel.js'
 import WinLine from './WinLine.js'
@@ -27,6 +27,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
         this.registerEventListeners();
         this.allReelsReachConstantSpeed = false;
         this.showWinTween;
+        this.isSkipToResult = false;
 
         scene.add.existing(this);
     }
@@ -54,6 +55,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
         this.scene.events.on(GAME_EVENT.SPIN_WAIT_RESULT, this.onWaitForResult, this);
         this.scene.events.on(GAME_EVENT.SPIN_END, this.onReelSpinEnd, this);
         this.scene.events.on(GAME_EVENT.SHOW_WIN_END, this.onShowWinEnd, this);
+        this.scene.events.on(GAME_EVENT.SPIN_SKIP_TO_RESULT, this.onSkipToResult, this);
 
         this.scene.events.on(GAME_EVENT.PRESS_TURBO, this.toggleTurbo, this);
     }
@@ -64,8 +66,11 @@ export default class Board extends Phaser.GameObjects.Sprite {
             this.state = BOARD_STATE.SPIN_START;
             this.scene.events.emit(GAME_EVENT.SPIN_START_SWING);
             this.allReelsReachConstantSpeed = false;
-        } else {
-            console.log('Not able to spin, board is not idle!');
+        } else {            
+            console.log('Not able to spin, try to skip');
+            if (!this.isSkipToResult) {
+                this.scene.events.emit(GAME_EVENT.SPIN_SKIP_TO_RESULT);
+            }
         }
     }
 
@@ -115,16 +120,17 @@ export default class Board extends Phaser.GameObjects.Sprite {
         }
     }
 
-    async onWaitForResult() {
+    async onWaitForResult(isSkip = false) {
         // generate result after a delay
         let tweenCounter;
         await new Promise((resolve) => {
             tweenCounter = this.scene.tweens.addCounter({
                 from: 0,
-                to: 2,
-                duration: 2,
+                to: 1,
+                duration: (this.isTurbo || isSkip || this.isSkipToResult) ? 0 : 500,
                 onComplete: (tween) => {
                     this.boardData = this.scene.randomizeBoardData();
+                    this.state = BOARD_STATE.SPIN_TO_RESULT;
                     this.scene.events.emit(GAME_EVENT.SPIN_DECELERATE, this.boardData);
                     resolve.call();
                 }
@@ -171,6 +177,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
 
     async onShowWinEnd() {
         this.state = BOARD_STATE.IDLE;
+        this.isSkipToResult = false;    // reset
         if (this.scene.isAutoSpin) {
             this.scene.events.emit(GAME_EVENT.PRESS_SPIN);
         }
@@ -182,5 +189,18 @@ export default class Board extends Phaser.GameObjects.Sprite {
             reel.setTurbo(this.isTurbo);
         }
         this.scene.turboButton.setBackgroundColor(this.isTurbo ? '#d3d3d3' : '#ffffff');
+    }
+
+    async onSkipToResult() {
+        this.isSkipToResult = true;
+        this.boardData = this.scene.randomizeBoardData();
+        for (let i = 0; i < GAMECFG.REELNUM; ++i) {
+            if (this.reels[i].tweenAction.isPlaying()) {
+                this.reels[i].tweenAction.complete();
+                this.reels[i].tweenAction.stop();
+            }
+            this.reels[i].isSkipToResult = true;
+            // this.reels[i].spinToResult(i);
+        }
     }
 }

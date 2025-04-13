@@ -32,6 +32,7 @@ export const GAME_EVENT = {
     SHOW_WIN: 'showWin',
     // SHOW_INFOBAR_WIN: 'showInfobarWin',
     SHOW_WIN_END: 'showWinEnd',
+    SPIN_SKIP_TO_RESULT: 'spinSkipToResult',
 
     PRESS_TURBO: 'pressTurbo',
     PRESS_AUTO: 'pressAuto',

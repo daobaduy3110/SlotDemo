@@ -42,6 +42,7 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.spinResult = [];
         this.isTurbo = false;
         this.spinCfg = this.isTurbo ? TURBOSPINCFG : SPINCFG;
+        this.isSkipToResult = false;
 
         const boardHeight = GAMECFG.SYMBOLHEIGHT * GAMECFG.ROWNUM + GAMECFG.PADDING * 2;
         this.topBoardY = this.scene.game.config.height / 2 - boardHeight / 2;
@@ -59,6 +60,7 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.scene.events.on(GAME_EVENT.SPIN_TO_RESULT, this.spinToResult, this);
         this.scene.events.on(GAME_EVENT.SPIN_END_SWING, this.swingAtSpinEnd, this);   
         this.scene.events.on(GAME_EVENT.SHOW_WIN, this.showWin, this);   
+        this.scene.events.on(GAME_EVENT.SHOW_WIN_END, this.showWinEnd, this);   
     }
 
     async startSwing() {
@@ -119,10 +121,14 @@ export default class Reel extends Phaser.GameObjects.Group {
 
         if (this.tweenAction.isPlaying()) {
             this.tweenAction.complete();
-            this.tweenAction.destroy();
         }
         // tween the velocity from 0 to constant speed
         await new Promise((resolve) => {
+            if (this.isSkipToResult) {
+                resolve.call();
+                return;
+            }
+
             this.tweenAction = this.scene.tweens.addCounter({
                 from: 0,
                 to: this.spinCfg.SPIN_CONSTANT_SPEED,
@@ -131,9 +137,11 @@ export default class Reel extends Phaser.GameObjects.Group {
                     resolve.call();
                 },
                 onUpdate: async (tween, target, key, current, previous, param) => {
-                    this.spinSpeed = this.tweenAction.getValue();
-                    await this.checkUpdateOutOfSightSymbols();
-                    this.updateSymbolPos();
+                    if (!this.isSkipToResult) {
+                        this.spinSpeed = this.tweenAction.getValue();
+                        await this.checkUpdateOutOfSightSymbols();
+                        this.updateSymbolPos();
+                    }
                 }
             });
         });
@@ -157,14 +165,21 @@ export default class Reel extends Phaser.GameObjects.Group {
             this.tweenAction.complete();
         }
         await new Promise((resolve) => {
+            if (this.isSkipToResult) {
+                resolve.call();
+                return;
+            }
+
             this.tweenAction = this.scene.tweens.addCounter({
                 from: 0,
                 to: 5,
                 duration: 5,
                 repeat: -1,
                 onUpdate: async (tween, target, key, current, previous, param) => {
-                    await this.checkUpdateOutOfSightSymbols();
-                    this.updateSymbolPos();
+                    if (!this.isSkipToResult) {
+                        await this.checkUpdateOutOfSightSymbols();
+                        this.updateSymbolPos();
+                    }
                 },
                 onStop: (tween, targets) => { 
                     resolve.call();
@@ -174,19 +189,21 @@ export default class Reel extends Phaser.GameObjects.Group {
     }
 
     async spinDecelerate(boardData) {
-        // delay first
-        const delayDuration = this.spinCfg.SPIN_START_DELAY * this.id;
-        await new Promise((resolve) => {
-            const delayCounter = this.scene.tweens.addCounter({
-                from: 0,
-                to: delayDuration,
-                duration: delayDuration,
-                onComplete: (tween) => {
-                    resolve.call();
-                    delayCounter.stop();
-                }
+        if (!this.isSkipToResult) {
+            // delay first
+            const delayDuration = this.spinCfg.SPIN_START_DELAY * this.id;
+            await new Promise((resolve) => {
+                const delayCounter = this.scene.tweens.addCounter({
+                    from: 0,
+                    to: delayDuration,
+                    duration: delayDuration,
+                    onComplete: (tween) => {
+                        resolve.call();
+                        delayCounter.stop();
+                    }
+                });
             });
-        });
+        }
 
         if (this.tweenAction.isPlaying()) {
             this.tweenAction.stop();
@@ -194,6 +211,11 @@ export default class Reel extends Phaser.GameObjects.Group {
         this.spinResult = boardData[this.id];
         this.state = REEL_STATE.SPIN_DECELERATE;
         await new Promise((resolve) => {
+            if (this.isSkipToResult) {
+                resolve.call();
+                return;
+            }
+
             this.tweenAction = this.scene.tweens.addCounter({
                 from: this.spinCfg.SPIN_CONSTANT_SPEED,
                 to: this.spinCfg.SPIN_TO_RESULT_SPEED,
@@ -202,9 +224,11 @@ export default class Reel extends Phaser.GameObjects.Group {
                     resolve.call();
                 },
                 onUpdate: async (tween, target, key, current, previous, param) => {
-                    this.spinSpeed = this.tweenAction.getValue();
-                    await this.checkUpdateOutOfSightSymbols();
-                    this.updateSymbolPos();
+                    if (!this.isSkipToResult) {
+                        this.spinSpeed = this.tweenAction.getValue();
+                        await this.checkUpdateOutOfSightSymbols();
+                        this.updateSymbolPos();
+                    }
                 }
             });
         });
@@ -247,6 +271,9 @@ export default class Reel extends Phaser.GameObjects.Group {
 
         // spin to result
         const distanceToResult = this.topBoardY + GAMECFG.SYMBOLHEIGHT / 2 - this.topSymbol.y/*  + this.spinCfg.END_SWING_DISTANCE */;
+        if (this.isSkipToResult) {
+            this.spinSpeed = TURBOSPINCFG.SPIN_TO_RESULT_SPEED;
+        }
         const tweenDuration = distanceToResult / this.spinSpeed * 1000; // tween duration use ms unit
         await new Promise((resolve) => {
             this.tweenAction = this.scene.tweens.addCounter({
@@ -260,9 +287,6 @@ export default class Reel extends Phaser.GameObjects.Group {
                     this.updateSymbolPos();
                 }
             });
-            // this.tweenAction.on('update', async (tween, target, key, current, previous, param) => {
-            //     this.updateSymbolPos();
-            // }, this);
         });
 
         // remove all symbols, except the result symbols, which were added last
@@ -313,7 +337,13 @@ export default class Reel extends Phaser.GameObjects.Group {
 
     async showWin() {
         // test
+        this.state = REEL_STATE.SHOW_WIN;
+    }
+
+    async showWinEnd() {
+        // test
         this.state = REEL_STATE.IDLE;
+        this.isSkipToResult = false;    // reset after each spin
     }
 
     reachConstantSpeed() {
