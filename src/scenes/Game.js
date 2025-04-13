@@ -12,6 +12,7 @@ export class GameScene extends Phaser.Scene {
         this.spinButton;
         this.infoBarText;
         this.infoBarTween;
+        this.isAutoSpin = false;
     }
 
     create() {
@@ -56,6 +57,21 @@ export class GameScene extends Phaser.Scene {
             this.events.emit(GAME_EVENT.PRESS_TURBO);
         }, this);
         this.turboButton.setBackgroundColor(this.board.isTurbo ? '#d3d3d3' : '#ffffff');
+
+        // auto button
+        this.autoButton = this.add.text(gameWidth - 100, gameHeight - 80, 'AUTO', {
+            fontSize: '36px',
+            color: '#000000',
+            backgroundColor: '#ffffff',
+            padding: { x: 20, y: 10 },
+            borderRadius: 10,
+        }).setOrigin(0.5).setInteractive();
+        this.autoButton.on('pointerup', function (pointer, localX, localY, event) {
+            this.isAutoSpin = !this.isAutoSpin;
+            this.autoButton.setBackgroundColor(this.isAutoSpin ? '#d3d3d3' : '#ffffff');
+            this.events.emit(GAME_EVENT.PRESS_AUTO);
+        }, this);
+        this.autoButton.setBackgroundColor(this.isAutoSpin ? '#d3d3d3' : '#ffffff');
 
         // spin button
         this.spinButton = this.add.text(gameWidth / 2, gameHeight - 80, 'SPIN', {

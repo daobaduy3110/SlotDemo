@@ -171,6 +171,9 @@ export default class Board extends Phaser.GameObjects.Sprite {
 
     async onShowWinEnd() {
         this.state = BOARD_STATE.IDLE;
+        if (this.scene.isAutoSpin) {
+            this.scene.events.emit(GAME_EVENT.PRESS_SPIN);
+        }
     }
 
     async toggleTurbo() {

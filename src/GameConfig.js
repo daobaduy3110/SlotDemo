@@ -34,6 +34,7 @@ export const GAME_EVENT = {
     SHOW_WIN_END: 'showWinEnd',
 
     PRESS_TURBO: 'pressTurbo',
+    PRESS_AUTO: 'pressAuto',
 }
 
 export const SPINCFG = {
