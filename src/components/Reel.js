@@ -281,6 +281,14 @@ export default class Reel extends Phaser.GameObjects.Group {
         if (this.tweenAction.isPlaying()) {
             this.tweenAction.complete();
         }
+
+        // safely reset symbol position
+        for (let i = 0; i < this.getChildren().length; ++i) {
+            let child = this.getChildren()[i];
+            // symbols were added from bottom to top
+            child.y = this.scene.board.getPositionY(GAMECFG.ROWNUM - 1 - i);
+        }
+
         await new Promise((resolve) => {
             this.tweenAction = this.scene.tweens.add({
                 targets: this.getChildren(),

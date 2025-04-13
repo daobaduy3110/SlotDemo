@@ -77,7 +77,7 @@ export default class Board extends Phaser.GameObjects.Sprite {
         const gameHeight = this.scene.game.config.height;
         const boardHeight = GAMECFG.SYMBOLHEIGHT * GAMECFG.ROWNUM + GAMECFG.PADDING * 2;
         const boardY = gameHeight / 2 - boardHeight / 2;
-        return boardY + row * GAMECFG.SYMBOLHEIGHT + GAMECFG.SYMBOLHEIGHT / 2;
+        return boardY + row * GAMECFG.SYMBOLHEIGHT + GAMECFG.SYMBOLHEIGHT / 2 + GAMECFG.PADDING;
     }
 
     isAbleToSpin() { return this.state == BOARD_STATE.IDLE; }
